@@ -22,3 +22,4 @@ def translate_qml(template_file, translations_file, langs=("en", "zh")):
 
 if __name__ == "__main__":
     translate_qml("IntegerNotationInside.qml", "translation.json")
+    translate_qml("IntegerNotationOutside.qml", "translation.json")

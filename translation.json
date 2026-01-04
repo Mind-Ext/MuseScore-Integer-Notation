@@ -5,6 +5,12 @@
     "Replace noteheads with Integer Notation or Numbered Notation",
     "将符头替换为整数记法或简谱记法"
   ],
+  "plugin_title_outside": ["Integer Notation Outside", "整数记谱法（外部）"],
+  "menu_path_outside": ["Integer Notation Outside", "整数记谱法（外部）"],
+  "plugin_description_outside": [
+    "Add Integer Notation or Numbered Notation above/below the staves",
+    "在谱表外部添加整数记谱或简谱数字"
+  ],
   "notation_format_label": ["Notation format", "记谱格式"],
   "reference_note_label": [
     "Reference Note (MIDI C4=60)",
@@ -14,6 +20,8 @@
     "Reference note signature",
     "参考音的调号"
   ],
+  "key_signature_major_label": [" Maj", "大调"],
+  "key_signature_minor_label": [" min", "小调"],
   "signature_option_1st_degree": ["1st degree", "第一级"],
   "signature_option_6th_degree": ["6th degree", "第六级"],
   "signature_option_none": ["None", "无"],
@@ -25,6 +33,14 @@
     "Show octave dots (like Jianpu)",
     "用点号表示八度 (类似简谱)"
   ],
+  "chord_notes_display_label": ["Show notes in chords", "显示和弦中的音符"],
+  "chord_notes_display_all": ["All notes", "所有音符"],
+  "chord_notes_display_top": ["Top note only", "仅最高音"],
+  "chord_notes_display_bottom": ["Bottom note only", "仅最低音"],
+  "placement_label": ["Placement", "位置"],
+  "placement_option_above": ["Above", "上方"],
+  "placement_option_below": ["Below", "下方"],
+  "auto_placement_label": ["Auto placement (prevent overlap)", "自动定位（防止重叠）"],
   "set_notehead_left_label": ["Set noteheads to the left of stems", "符头总在符干左侧"],
   "reposition_notes_vertically_label": [
     "Re-position notes vertically",
@@ -37,10 +53,15 @@
   "text_font_label": ["Text font", "文字字体"],
   "text_color_label": ["Text color (RGB value)", "文字颜色 (RGB值)"],
   "x_offset_label": ["X offset", "X偏移"],
+  "y_offset_label": ["Y offset", "Y偏移"],
   "hide_notehead_method_label": ["Method to hide notehead", "隐藏符头方法"],
   "hide_method_color": ["color", "颜色"],
   "hide_method_visibility": ["visibility", "可见性"],
   "notehead_color_label": ["Notehead color (RGB value)", "符头颜色 (RGB值)"],
+  "chord_symbol_offset_label": [
+    "Extra Y offset under chord symbols",
+    "和弦符号下的额外Y偏移"
+  ],
   "text_style_label": ["Text style", "文字样式"],
   "text_style_custom": ["Custom-12", "自定义-12"],
   "text_style_user_1": ["User-1", "用户-1"],

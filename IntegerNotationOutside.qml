@@ -15,32 +15,20 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //==============================================
 
-import QtQuick 2.9
-import QtQuick.Controls 1.5
-import QtQuick.Layouts 1.3
+import QtQuick 2.15
+import QtQuick.Controls 2.15
+import QtQuick.Layouts 1.15
 import MuseScore 3.0
-import Qt.labs.settings 1.0
+
 
 MuseScore {
-    id: mainWindow
-    menuPath: "Plugins." + qsTr("Integer Notation Outside")
-    version: "0.3.1"
-    description: qsTr("Add Integer Notation or Numbered Notation of the notes below the staves")
+    version: "0.8.1 (465)"
+    title: qsTr("{{ plugin_title_outside }}")
+    menuPath: "Plugins." + qsTr("{{ menu_path_outside }}")
+    description: qsTr("{{ plugin_description_outside }}")
     pluginType: "dialog"
-    width: 300  // menu window size
-    height: 540
-
-    Component.onCompleted: {
-        if (mscoreMajorVersion >= 4) {
-            title = qsTr("Integer Notation Outside");
-        }
-    }
-
-    ExclusiveGroup {
-        id: exclusiveGroupKey
-    }
-
-    property var fontFamily: "Arial Narrow"
+    width: 320
+    height: 620
 
     ColumnLayout {
         id: column1
@@ -53,196 +41,126 @@ MuseScore {
             id: rowFormat
             width: parent.width
             Label {
-                text: "Notation format"
+                text: "{{ notation_format_label }}"
                 Layout.fillWidth: true
             }
             ComboBox {
+                id: inputNotationFormat
                 Layout.alignment: Qt.AlignRight
                 Layout.preferredWidth: 100
                 currentIndex: 0
                 model: ListModel {
-                    id: inputNotationFormat
-                    property var key
                     ListElement {
                         text: "0~11"
-                        fName: 0
-                    }
-                    ListElement {
-                        text: "1~7,♯"
-                        fName: 1
                     }
                     ListElement {
                         text: "1~7,♭"
-                        fName: 2
                     }
-                }
-                onCurrentIndexChanged: {
-                    inputNotationFormat.key = inputNotationFormat.get(currentIndex).fName;
+                    ListElement {
+                        text: "1~7,♯"
+                    }
                 }
             }
         }
 
         RowLayout {
             Label {
-                text: "Reference Note (MIDI num C4=60)"
+                text: "{{ reference_note_label }}"
                 Layout.fillWidth: true
             }
             SpinBox {
                 id: inputReferenceNote
-                implicitWidth: 55
-                decimals: 0
-                minimumValue: 0
-                maximumValue: 127
+                from: 0
+                to: 127
+                stepSize: 1
                 value: 60
+                Layout.preferredWidth: 60
                 Layout.alignment: Qt.AlignRight
             }
         }
         RowLayout {
             Label {
-                text: findKeySignature()
+                text: getKeySigText()
                 Layout.fillWidth: true
             }
         }
         RowLayout {
             Label {
-                text: "Voice"
+                text: "{{ reference_note_signature_label }}"
                 Layout.fillWidth: true
             }
             ComboBox {
+                id: inputRefSigFormat
+                Layout.alignment: Qt.AlignRight
+                Layout.preferredWidth: 100
                 currentIndex: 0
                 model: ListModel {
-                    id: inputVoice
-                    property var key
                     ListElement {
-                        text: "All"
-                        pName: -1
+                        text: "{{ signature_option_1st_degree }}"
                     }
                     ListElement {
-                        text: "Voice 1"
-                        pName: 0
+                        text: "{{ signature_option_6th_degree }}"
                     }
                     ListElement {
-                        text: "Voice 2"
-                        pName: 1
-                    }
-                    ListElement {
-                        text: "Voice 3"
-                        pName: 2
-                    }
-                    ListElement {
-                        text: "Voice 4"
-                        pName: 3
+                        text: "{{ signature_option_none }}"
                     }
                 }
-                Layout.preferredWidth: 100
+            }
+        }
+        RowLayout {
+            Label {
+                text: "{{ reference_note_follows_key_change_label }}"
+                Layout.fillWidth: true
+            }
+            CheckBox {
+                id: inputFollowKeyChange
+                text: ""
+                checked: true
                 Layout.alignment: Qt.AlignRight
-                onCurrentIndexChanged: {
-                    inputVoice.key = inputVoice.get(currentIndex).pName;
-                }
+            }
+        }
+        RowLayout {
+            Label {
+                text: "{{ show_octave_dots_label }}"
+                Layout.fillWidth: true
+            }
+            CheckBox {
+                id: inputOctaveDots
+                text: ""
+                checked: true
+                Layout.alignment: Qt.AlignRight
+            }
+        }
+        RowLayout {
+            Label {
+                text: "{{ chord_notes_display_label }}"
+                Layout.fillWidth: true
+            }
+            ComboBox {
+                id: inputChordNotesDisplay
+                Layout.alignment: Qt.AlignRight
+                Layout.preferredWidth: 140
+                currentIndex: 0
+                model: ["{{ chord_notes_display_all }}", "{{ chord_notes_display_top }}", "{{ chord_notes_display_bottom }}"]
             }
         }
 
         RowLayout {
             Label {
-                text: "Text style"
+                text: "{{ placement_label }}"
                 Layout.fillWidth: true
             }
             ComboBox {
-                currentIndex: 0
-                model: ListModel {
-                    id: inputStyle
-                    property var key
-                    ListElement {
-                        text: "Custom"
-                        pName: -1
-                    }
-                    ListElement {
-                        text: "User-1"
-                        pName: 49
-                    }
-                    ListElement {
-                        text: "User-2"
-                        pName: 50
-                    }
-                    ListElement {
-                        text: "User-3"
-                        pName: 51
-                    }
-                    ListElement {
-                        text: "User-4"
-                        pName: 52
-                    }
-                    ListElement {
-                        text: "User-5"
-                        pName: 53
-                    }
-                    ListElement {
-                        text: "User-6"
-                        pName: 54
-                    }
-                    ListElement {
-                        text: "User-7"
-                        pName: 55
-                    }
-                    ListElement {
-                        text: "User-8"
-                        pName: 56
-                    }
-                    ListElement {
-                        text: "User-9"
-                        pName: 57
-                    }
-                    ListElement {
-                        text: "User-10"
-                        pName: 58
-                    }
-                    ListElement {
-                        text: "User-11"
-                        pName: 59
-                    }
-                    ListElement {
-                        text: "User-12"
-                        pName: 60
-                    }
-                }
-                Layout.preferredWidth: 100
+                id: inputPlacement
+                model: ["{{ placement_option_above }}", "{{ placement_option_below }}"]
                 Layout.alignment: Qt.AlignRight
-                onCurrentIndexChanged: {
-                    inputStyle.key = inputStyle.get(currentIndex).pName;
-                }
+                Layout.preferredWidth: 100
             }
         }
 
         RowLayout {
             Label {
-                text: "Placement"
-                Layout.fillWidth: true
-            }
-            ComboBox {
-                currentIndex: 0
-                model: ListModel {
-                    id: inputPlacement
-                    property var key
-                    ListElement {
-                        text: "Above"
-                        pName: "above"
-                    }
-                    ListElement {
-                        text: "Below"
-                        pName: "below"
-                    }
-                }
-                Layout.preferredWidth: 100
-                Layout.alignment: Qt.AlignRight
-                onCurrentIndexChanged: {
-                    inputPlacement.key = inputPlacement.get(currentIndex).pName;
-                }
-                enabled: (inputStyle.key == -1)
-            }
-        }
-        RowLayout {
-            Label {
-                text: "Auto placement (prevent overlap)"
+                text: "{{ auto_placement_label }}"
                 Layout.fillWidth: true
             }
             CheckBox {
@@ -250,89 +168,174 @@ MuseScore {
                 text: ""
                 checked: true
                 Layout.alignment: Qt.AlignRight
-                enabled: (inputStyle.key == -1)
             }
+        }
+
+        Rectangle {
+            width: parent.width
+            height: 2
+            color: "transparent"
+        }
+        Rectangle {
+            width: parent.width
+            height: 1
+            color: "#cccccc"
+        }
+        Rectangle {
+            width: parent.width
+            height: 2
+            color: "transparent"
         }
 
         RowLayout {
             Label {
-                text: "Font Size"
-                Layout.fillWidth: true
-            }
-            SpinBox {
-                id: inputFontSize
-                implicitWidth: 55
-                decimals: 0
-                minimumValue: 4
-                maximumValue: 36
-                value: 10
-                Layout.alignment: Qt.AlignRight
-                enabled: (inputStyle.key == -1)
-            }
-        }
-
-        RowLayout {
-            Label {
-                text: "Line spacing (no effect yet)"
-                Layout.fillWidth: true
-            }
-            SpinBox {
-                id: inputLineSpacing
-                implicitWidth: 55
-                decimals: 2
-                minimumValue: 0.5
-                maximumValue: 1.5
-                value: 0.9
-                stepSize: 0.05
-                Layout.alignment: Qt.AlignRight
-                enabled: (inputStyle.key == -1)
-            }
-        }
-        RowLayout {
-            Label {
-                text: "X offset"
-                Layout.fillWidth: true
-            }
-            SpinBox {
-                id: inputXOffset
-                implicitWidth: 55
-                decimals: 1
-                minimumValue: -5
-                maximumValue: 5
-                value: 1
-                stepSize: 0.1
-                Layout.alignment: Qt.AlignRight
-                enabled: (inputStyle.key == -1)
-            }
-        }
-        RowLayout {
-            Label {
-                text: "Y offset"
-                Layout.fillWidth: true
-            }
-            SpinBox {
-                id: inputYOffset
-                implicitWidth: 55
-                decimals: 0
-                minimumValue: -20
-                maximumValue: 30
-                value: 0
-                Layout.alignment: Qt.AlignRight
-                enabled: (inputStyle.key == -1)
-            }
-        }
-
-        RowLayout {
-            Label {
-                text: "Color (RGB value)"
+                text: "{{ text_size_label }}"
                 Layout.fillWidth: true
             }
             TextField {
-                id: inputFontColor
-                text: "#000000"
+                id: inputFontSize
+                text: "10"
+                selectByMouse: true
                 Layout.preferredWidth: 60
                 Layout.alignment: Qt.AlignRight
-                enabled: (inputStyle.key == -1)
+            }
+        }
+
+        RowLayout {
+            Label {
+                text: "{{ text_font_label }}"
+                Layout.fillWidth: true
+            }
+            TextField {
+                id: inputFontFace
+                text: "Arial Narrow"
+                selectByMouse: true
+                Layout.preferredWidth: 100
+                Layout.alignment: Qt.AlignRight
+            }
+        }
+
+        RowLayout {
+            Label {
+                text: "{{ text_color_label }}"
+                Layout.fillWidth: true
+            }
+            TextField {
+                id: inputTextColor
+                text: "#000000"
+                selectByMouse: true
+                Layout.preferredWidth: 60
+                Layout.alignment: Qt.AlignRight
+            }
+        }
+
+        RowLayout {
+            Label {
+                text: "{{ x_offset_label }}"
+                Layout.fillWidth: true
+            }
+            TextField {
+                id: inputXOffset
+                text: "1"
+                selectByMouse: true
+                Layout.preferredWidth: 60
+                Layout.alignment: Qt.AlignRight
+            }
+        }
+
+        RowLayout {
+            Label {
+                text: "{{ y_offset_label }}"
+                Layout.fillWidth: true
+            }
+            TextField {
+                id: inputYOffset
+                text: "0"
+                selectByMouse: true
+                Layout.preferredWidth: 60
+                Layout.alignment: Qt.AlignRight
+            }
+        }
+
+        RowLayout {
+            Label {
+                text: "{{ chord_symbol_offset_label }}"
+                Layout.fillWidth: true
+            }
+            TextField {
+                id: inputChordSymbolOffset
+                text: "3.5"
+                selectByMouse: true
+                Layout.preferredWidth: 60
+                Layout.alignment: Qt.AlignRight
+            }
+        }
+
+        RowLayout {
+            Label {
+                text: "{{ text_style_label }}"
+                Layout.fillWidth: true
+            }
+            ComboBox {
+                id: inputStyleGroup
+                currentIndex: 0
+                textRole: "text"
+                model: ListModel {
+                    ListElement {
+                        text: "{{ text_style_custom }}"
+                        value: -1
+                    }
+                    ListElement {
+                        text: "{{ text_style_user_1 }}"
+                        value: 49
+                    }
+                    ListElement {
+                        text: "{{ text_style_user_2 }}"
+                        value: 50
+                    }
+                    ListElement {
+                        text: "{{ text_style_user_3 }}"
+                        value: 51
+                    }
+                    ListElement {
+                        text: "{{ text_style_user_4 }}"
+                        value: 52
+                    }
+                    ListElement {
+                        text: "{{ text_style_user_5 }}"
+                        value: 53
+                    }
+                    ListElement {
+                        text: "{{ text_style_user_6 }}"
+                        value: 54
+                    }
+                    ListElement {
+                        text: "{{ text_style_user_7 }}"
+                        value: 55
+                    }
+                    ListElement {
+                        text: "{{ text_style_user_8 }}"
+                        value: 56
+                    }
+                    ListElement {
+                        text: "{{ text_style_user_9 }}"
+                        value: 57
+                    }
+                    ListElement {
+                        text: "{{ text_style_user_10 }}"
+                        value: 58
+                    }
+                    ListElement {
+                        text: "{{ text_style_user_11 }}"
+                        value: 59
+                    }
+                    ListElement {
+                        text: "{{ text_style_user_12 }}"
+                        value: 60
+                    }
+                }
+                Layout.preferredWidth: 100
+                Layout.alignment: Qt.AlignRight
             }
         }
 
@@ -345,178 +348,293 @@ MuseScore {
             Button {
                 Layout.alignment: Qt.AlignRight
                 Layout.preferredWidth: 80
-                text: "Cancel"
+                text: "{{ cancel_button_label }}"
                 onClicked: {
-                    quit();
+                    quit()
                 }
             }
             Button {
                 Layout.alignment: Qt.AlignRight
                 Layout.preferredWidth: 80
-                text: "Ok"
+                text: "{{ ok_button_label }}"
                 onClicked: {
-                    curScore.startCmd();
-                    applyToSelection();
-                    curScore.endCmd();
-                    quit();
+                    // quit first, otherwise cmd() won't work in 4.4+
+                    // https://musescore.org/en/node/372762
+                    quit()
+                    curScore.startCmd()
+                    main()
+                    curScore.endCmd()
                 }
+                highlighted: true
             }
         }
     }
 
     onRun: {
         if (typeof curScore === 'undefined')
-            quit();
+            quit()
     }
 
-    function findKeySignature() {
-        var c = curScore.newCursor();
-        // c.inputStateMode = Cursor.INPUT_STATE_SYNC_WITH_SCORE;
-        var keySigOffset = c.keySignature;
-        var prefix = "  Key Signature: ";
+    function keySigToPitchClass(keySig) {
+        const offsetToClass = [0, 7, 2, 9, 4, 11, 6, 1, 8, 3, 10, 5]
+        return offsetToClass[(keySig + 12)%12]
+    }
+
+    function keySigToNoteNames(keySig) {
+        const mapping = {
+            "0": ["C", "A"],
+            "1": ["G", "E"],
+            "2": ["D", "B"],
+            "3": ["A", "F#"],
+            "4": ["E", "C#"],
+            "5": ["B", "G#"],
+            "6": ["F#", "D#"],
+            "7": ["C#", "A#"],
+            "-1": ["F", "D"],
+            "-2": ["Bb", "G"],
+            "-3": ["Eb", "C"],
+            "-4": ["Ab", "F"],
+            "-5": ["Db", "Bb"],
+            "-6": ["Gb", "Eb"],
+            "-7": ["Cb", "Ab"]
+        }
+        return mapping[keySig.toString()]
+    }
+
+    function noteNumToNoteName(n) {
+        const noteNames = ["C", "C#/Db", "D", "D#/Eb", "E", "F", "F#/Gb", "G", "G#/Ab", "A", "A#/Bb", "B"]
+        return noteNames[(n+1200) % 12]
+    }
+
+    function getKeySigText() {
+        var cursor = curScore.newCursor()
+        if (curScore.selection.elements.length) {
+            cursor.rewind(Cursor.SELECTION_START)
+        } else {
+            cursor.rewind(Cursor.SCORE_START)
+        }
+        var keySigOffset = cursor.keySignature
+        var prefix = "{{inital_key}}"
         if (isNaN(keySigOffset)) {
-            return prefix + "unknown";
+            return prefix + "{{unknown}}"
         }
-        var offsetToClass = [0, 7, 2, 9, 4, 11, 6, 1, 8, 3, 10, 5];
-        var noteNames = ["C", "D♭", "D", "E♭", "E", "F", "F♯/G♭", "G", "A♭", "A", "B♭", "B"];
-        var keyIndex = keySigOffset;
-        if (keyIndex < 0)
-            keyIndex += 12;
-        var pitchClass = offsetToClass[keyIndex];
-        var noteName = noteNames[pitchClass];
-        if (keySigOffset == 6) {
-            noteName = "F♯";
-        } else if (keySigOffset == -6) {
-            noteName = "G♭";
+        var pitchClass = keySigToPitchClass(keySigOffset)
+        var noteNames = keySigToNoteNames(keySigOffset)
+
+        var keySigText = `${noteNames[0]}{{ key_signature_major_label }} / ${noteNames[1]}{{ key_signature_minor_label }}`
+        if (keySigOffset != 0) {
+            const symbol = keySigOffset > 0 ? "#" : "b"
+            keySigText = `(${symbol}×${Math.abs(keySigOffset)}) ${keySigText}`
         }
-        var keySigText = "";
-        if (keySigOffset > 0) {
-            keySigText = "♯".repeat(keySigOffset);
-            keySigText += "/" + noteName;
-        } else if (keySigOffset < 0) {
-            keySigText = "♭".repeat(-keySigOffset);
-            keySigText += "/" + noteName;
-        } else {
-            keySigText = "C";
+
+        var refNote = pitchClass + 60
+        if (refNote >= 67) {
+            refNote -= 12
         }
-        var refNote = pitchClass + 60;
-        inputReferenceNote.value = refNote;
-        return `${prefix}${keySigText} (${noteName}4=${refNote})`;
+        var oct = Math.floor(refNote / 12) - 1
+        if (noteNames[0] == "Cb") {
+            oct += 1
+        }
+        inputReferenceNote.value = refNote
+        return `${prefix}${keySigText}, ${noteNames[0]}${oct}=${refNote}`
     }
 
-    function formatText(text) {
-        if (inputStyle.key == -1) {
-            // 56 = User-8
-            // 60 = User-12
-            text.subStyle = 60
-
-            text.placement = inputPlacement.key == "above" ? Placement.ABOVE : Placement.BELOW;
-            // above or below the staff
-            text.autoplace = inputAutoPlacement.checked ? true : false;
-            // automatically place the text to prevent overlapping with other elements
-            text.align = Align.RIGHT + Align.BASELINE;
-            // text alignment horizontally and vertically
-            text.fontFace = fontFamily;
-            text.fontSize = inputFontSize.value;
-            text.textLineSpacing = inputLineSpacing.value;
-            // no effect, lineSpacing seems not exposed to plugin API yet
-            // https://github.com/musescore/MuseScore/blob/ed678925efbbdbb9bd14ea3f6f7c9b5ab42491e7/src/plugins/api/elements.h#L348
-            text.color = inputFontColor.text;
-            text.offsetX = inputXOffset.value;
-            text.offsetY = inputYOffset.value;
-        } else {
-            text.subStyle = inputStyle.key;
-        }
-    }
-
-    function applyToSelection() {
-        var cursor = curScore.newCursor();
-        var startStaff;
-        var endStaff;
-        var endTick;
-        var fullScore = false;
-
-        cursor.rewind(1);  // rewind to start of selection
-        if (!cursor.segment) {
-            // no selection
-            fullScore = true;
-            startStaff = 0; // start with 1st staff
-            endStaff = curScore.nstaves - 1; // and end with last
-        } else {
-            startStaff = cursor.staffIdx;
-            cursor.rewind(2); // rewind to end of selection
-            if (cursor.tick == 0) {
-                endTick = curScore.lastSegment.tick + 1;
-            } else {
-                endTick = cursor.tick;
+    // Check if segment has a chord symbol (Harmony element)
+    function hasChordSymbol(segment, staffIdx) {
+        if (!segment || !segment.annotations) return false
+        for (let i = 0; i < segment.annotations.length; i++) {
+            let annotation = segment.annotations[i]
+            if (annotation.type === Element.HARMONY) {
+                // Check if the chord symbol belongs to this staff
+                if (annotation.staff === staffIdx || segment.annotations.length > 0) {
+                    return true
+                }
             }
-            endStaff = cursor.staffIdx;
         }
+        return false
+    }
+
+    function main() {
+        let fullScore = !curScore.selection.elements.length
+        if (fullScore) {
+            cmd("select-all")
+        }
+        let cursor = curScore.newCursor()
+        cursor.rewind(Cursor.SELECTION_START)
+        let startStaff = cursor.staffIdx
+        cursor.rewind(Cursor.SELECTION_END)
+        let endStaff = cursor.staffIdx
+        let endTick = cursor.tick == 0 ? curScore.lastSegment.tick + 1 : cursor.tick
+
+        cursor.rewind(Cursor.SELECTION_START)
+        let initialKeySig = cursor.keySignature
+        let prevKeySig
+        let currKeySig
+
         for (let staff = startStaff; staff <= endStaff; staff++) {
             for (let voice = 0; voice < 4; voice++) {
-                if (inputVoice.key != -1 && inputVoice.key != voice)
-                    continue;
-                cursor.rewind(1); // beginning of selection
-                cursor.voice = voice;
-                cursor.staffIdx = staff;
-                if (fullScore)  // no selection
-                    cursor.rewind(0); // beginning of score
+                cursor.rewind(Cursor.SELECTION_START)
+                cursor.voice = voice
+                cursor.staffIdx = staff
 
-                while (cursor.segment && (fullScore || cursor.tick < endTick)) {
-                    if (cursor.element && cursor.element.type == Element.CHORD) {
-                        // If it is a note, not a rest
-                        let graceNotes = cursor.element.graceNotes;
-                        for (let i = 0; i < graceNotes.length; i++) {
-                            let notes = graceNotes[i].notes;
-                            let text = createNoteText(notes, inputNotationFormat.key);
-                            formatText(text);
-                            text.fontSize = inputFontSize.value * 0.7;
-                            text.offsetX += -1.5 * (graceNotes.length - i);      // X position of Grace note
-                            cursor.add(text);
-                        } // end graceNotes
-
-                        let notes = cursor.element.notes;
-                        let text = createNoteText(notes, inputNotationFormat.key);
-                        formatText(text);
-                        cursor.add(text); //   音符に表示
+                while (cursor.segment && cursor.tick < endTick) {
+                    if (cursor.element
+                    && (cursor.element.type == Element.CHORD
+                    || cursor.element.type == Element.REST)) {
+                        currKeySig = cursor.keySignature
+                        if (prevKeySig !== currKeySig) {
+                            if (inputRefSigFormat.currentIndex !== 2 && voice === 0 && staff === 0) {
+                                if (inputFollowKeyChange.checked || prevKeySig === undefined) {
+                                    cursor.add(createRefNoteSigText(initialKeySig, currKeySig))
+                                }
+                            }
+                            prevKeySig = currKeySig
+                        }
                     }
-                    cursor.next();
-                } // end while
-            } // end for voice
-        } // end for staff
-    } // end function
-
-    function createNoteText(notes, notationFormat) {
-        var formats = [];
-        formats.push(["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"]);
-        formats.push(["1", "#1", "2", "#2", "3", "4", "#4", "5", "#5", "6", "#6", "7"]);
-        formats.push(["1", "b2", "2", "b3", "3", "4", "b5", "5", "b6", "6", "b7", "7"]);
-        function getNoteText(pitchClass) {
-            var noteText = formats[notationFormat][pitchClass];
-            if (notationFormat != 0 && noteText.length > 1) {
-                noteText = "<sup>" + noteText[0] + "</sup>" + noteText[1];
+                    if (cursor.element && cursor.element.type == Element.CHORD) {
+                        let chordSymbolPresent = hasChordSymbol(cursor.segment, staff)
+                        
+                        let graceChords = cursor.element.graceNotes
+                        for (let i = 0; i < graceChords.length; i++) {
+                            let textEl = createChordText(graceChords[i], initialKeySig, currKeySig)
+                            formatText(textEl, true, graceChords.length - i, chordSymbolPresent)
+                            cursor.add(textEl)
+                        }
+                        let textEl = createChordText(cursor.element, initialKeySig, currKeySig)
+                        formatText(textEl, false, 0, chordSymbolPresent)
+                        cursor.add(textEl)
+                    }   
+                    cursor.next()
+                }
             }
-            return noteText;
         }
-        let text = newElement(Element.STAFF_TEXT)
-        var dot = "•";
-        var sep = "\n";
-        for (var i = 0; i < notes.length; i++) {
-            if (i > 0)
-                text.text = sep + text.text; // multiple notes vertically
-            if (notes[i].tieBack == null) {
-                var relativeOctave = Math.floor((notes[i].pitch - inputReferenceNote.value) / 12);
-                var pitchClass = (notes[i].pitch - inputReferenceNote.value) % 12;
-                if (pitchClass < 0)
-                    pitchClass += 12;
-                var textBefore = "";
-                if (relativeOctave > 0)
-                    textBefore += "<sup>" + dot.repeat(relativeOctave) + "</sup>";
-                if (relativeOctave < 0)
-                    textBefore += "<sub>" + dot.repeat(-relativeOctave) + "</sub>";
-                text.text = textBefore + getNoteText(pitchClass) + text.text;
-            }// end for tieBack
+        if (fullScore) {
+            cmd("escape")
         }
-        return text;
-    } // end for note
-} // end MuseScore
+    }
+
+    function getNoteText(pitchClass) {
+        let formats = []
+        formats.push(["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"])
+        formats.push(["1", "b2", "2", "b3", "3", "4", "b5", "5", "b6", "6", "b7", "7"])
+        formats.push(["1", "#1", "2", "#2", "3", "4", "#4", "5", "#5", "6", "#6", "7"])
+        let notation = formats[inputNotationFormat.currentIndex]
+        let noteText = notation[pitchClass]
+        if ("#b".includes(noteText[0])) {
+            noteText = "<sup>" + noteText[0] + "</sup>" + noteText[1]
+        }
+        return noteText
+    }
+
+    function createRefNoteSigText(initialKeySig, currKeySig) {
+        let pc1 = keySigToPitchClass(initialKeySig)
+        let pc2 = keySigToPitchClass(currKeySig)
+        let keyChangeOffset =  inputFollowKeyChange.checked ? (pc2 + 12 - pc1) % 12 : 0
+        if (keyChangeOffset > 6) {
+            keyChangeOffset -= 12
+        }
+        let newRefNote = inputReferenceNote.value + keyChangeOffset
+        let [keyNameMajor, keyNameMinor] = ["", ""]
+        if (newRefNote % 12 === pc1) {
+            [keyNameMajor, keyNameMinor] = keySigToNoteNames(initialKeySig)
+        } else if (newRefNote % 12 === pc2) {
+            [keyNameMajor, keyNameMinor] = keySigToNoteNames(currKeySig)
+        } else {
+            keyNameMajor = noteNumToNoteName(newRefNote)
+            keyNameMinor = noteNumToNoteName(newRefNote - 3)
+        }
+        let keyName = keyNameMajor
+        let prefix = ""
+        let octave = ""
+        let suffix = ""
+        if (inputRefSigFormat.currentIndex == 0)  {
+            prefix += inputNotationFormat.currentIndex == 0 ? "0=" : "1="
+        } else if (inputRefSigFormat.currentIndex == 1) {
+            prefix += inputNotationFormat.currentIndex == 0 ? "9=" : "6="
+            keyName = keyNameMinor
+            newRefNote += 9
+        }
+        if (inputOctaveDots.checked) {
+            octave = Math.floor(newRefNote / 12) - 1
+            if (keyName == "Cb") {
+                octave += 1
+            }
+            suffix = ` (${newRefNote})`
+        }
+        let el = newElement(Element.STAFF_TEXT)
+        el.text = `${prefix}${keyName}${octave}${suffix}`
+        return el
+    }
+
+    function createChordText(chord, initialKeySig, currKeySig) {
+        let pc1 = keySigToPitchClass(initialKeySig)
+        let pc2 = keySigToPitchClass(currKeySig)
+        let offset = (pc2 + 12 - pc1) % 12
+        if (offset > 6) {
+            offset -= 12
+        }
+        let refNote = inputReferenceNote.value + offset
+
+        let el = newElement(Element.STAFF_TEXT)
+        let notes = chord.notes
+        let dot = "•"
+        let text = ""
+
+        let selectedNotes = notes
+        if (notes.length > 0) {
+            if (inputChordNotesDisplay.currentIndex === 1) {
+                selectedNotes = [notes[notes.length - 1]] // top note
+            } else if (inputChordNotesDisplay.currentIndex === 2) {
+                selectedNotes = [notes[0]] // bottom note
+            }
+        }
+
+        let noteTexts = []
+        for (let i = 0; i < selectedNotes.length; i++) {
+            let note = selectedNotes[i]
+
+            if (note.tieBack == null) {  // skip tied notes
+                let relPitchClass = (note.pitch - refNote + 1200) % 12
+                let relativeOctave = Math.floor((note.pitch - refNote) / 12)
+
+                let noteText = ""
+                if (relativeOctave > 0 && inputOctaveDots.checked)
+                    noteText += "<sup>" + dot.repeat(relativeOctave) + "</sup>"
+                if (relativeOctave < 0 && inputOctaveDots.checked)
+                    noteText += "<sub>" + dot.repeat(-relativeOctave) + "</sub>"
+                noteText += getNoteText(relPitchClass)
+                noteTexts.push(noteText)
+            }
+        }
+
+        el.text = noteTexts.join("\n")
+        return el
+    }
+
+    function formatText(textEl, isGrace, graceOffset, hasChordSym) {
+        if (inputStyleGroup.currentIndex == 0) {
+            textEl.subStyle = 64  // User-12 in MS 4.4+
+            textEl.placement = inputPlacement.currentIndex == 0 ? Placement.ABOVE : Placement.BELOW
+            textEl.autoplace = inputAutoPlacement.checked
+            textEl.align = Align.RIGHT + Align.BASELINE
+            textEl.fontFace = inputFontFace.text
+            textEl.fontSize = parseFloat(inputFontSize.text)
+            textEl.color = inputTextColor.text
+            textEl.offsetX = parseFloat(inputXOffset.text)
+            textEl.offsetY = parseFloat(inputYOffset.text)
+            
+            // If there's a chord symbol and placement is Above, add extra Y offset
+            // to position the number below the chord symbol
+            if (hasChordSym && inputPlacement.currentIndex == 0) {
+                textEl.offsetY += parseFloat(inputChordSymbolOffset.text)
+            }
+            
+            if (isGrace) {
+                textEl.fontSize = textEl.fontSize * 0.7
+                textEl.offsetX += -1.5 * graceOffset
+            }
+        } else {
+            textEl.subStyle = inputStyleGroup.model.get(inputStyleGroup.currentIndex).value + 4
+        }
+    }
+}
