@@ -22,7 +22,7 @@ import MuseScore 3.0
 
 
 MuseScore {
-    version: "0.8.0"
+    version: "0.8.1 (465)"
     title: qsTr("整数记谱法")
     menuPath: "Plugins." + qsTr("整数记谱法")
     description: qsTr("将符头替换为整数记法或简谱记法")
@@ -418,7 +418,7 @@ MuseScore {
         var pitchClass = keySigToPitchClass(keySigOffset)
         var noteNames = keySigToNoteNames(keySigOffset)
 
-        var keySigText = `${noteNames[0]} Maj / ${noteNames[1]} min`
+        var keySigText = `${noteNames[0]}大调 / ${noteNames[1]}小调`
         if (keySigOffset != 0) {
             const symbol = keySigOffset > 0 ? "#" : "b"
             // const symbol = keySigOffset > 0 ? "♯" : "♭"

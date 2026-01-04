@@ -22,7 +22,7 @@ import MuseScore 3.0
 
 
 MuseScore {
-    version: "0.8.0"
+    version: "0.8.1 (465)"
     title: qsTr("{{ plugin_title }}")
     menuPath: "Plugins." + qsTr("{{ menu_path }}")
     description: qsTr("{{ plugin_description }}")
@@ -418,7 +418,7 @@ MuseScore {
         var pitchClass = keySigToPitchClass(keySigOffset)
         var noteNames = keySigToNoteNames(keySigOffset)
 
-        var keySigText = `${noteNames[0]} Maj / ${noteNames[1]} min`
+        var keySigText = `${noteNames[0]}{{ key_signature_major_label }} / ${noteNames[1]}{{ key_signature_minor_label }}`
         if (keySigOffset != 0) {
             const symbol = keySigOffset > 0 ? "#" : "b"
             // const symbol = keySigOffset > 0 ? "♯" : "♭"

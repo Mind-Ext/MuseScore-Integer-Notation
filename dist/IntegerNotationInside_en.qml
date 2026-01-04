@@ -22,7 +22,7 @@ import MuseScore 3.0
 
 
 MuseScore {
-    version: "0.8.0"
+    version: "0.8.1 (465)"
     title: qsTr("Integer Notation")
     menuPath: "Plugins." + qsTr("Integer Notation")
     description: qsTr("Replace noteheads with Integer Notation or Numbered Notation")
