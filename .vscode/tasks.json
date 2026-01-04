@@ -1,0 +1,36 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Translate",
+            "type": "shell",
+            "command": "python translate.py",
+        },
+        {
+            "label": "Copy to plugin folder",
+            "type": "shell",
+            "command": "cp -f translated/*.qml ~/Documents/MuseScore4/Plugins/",
+            "dependsOn": ["Translate"],
+            "dependsOrder": "sequence",
+            "problemMatcher": []
+        },
+        {
+            "label": "Prepare dist (inside)",
+            "type": "shell",
+            "command": "grep 'version:' dist/IntegerNotationInside_en.qml && cp -f translated/IntegerNotationInside_*.qml dist/ && grep 'version:' dist/IntegerNotationInside_en.qml",
+            "dependsOn": ["Copy to plugin folder"],
+            "dependsOrder": "sequence",
+            "problemMatcher": []
+        },
+        {
+            "label": "Prepare dist (outside)",
+            "type": "shell",
+            "command": "grep 'version:' dist/IntegerNotationOutside_en.qml && cp -f translated/IntegerNotationOutside_*.qml dist/ && grep 'version:' dist/IntegerNotationOutside_en.qml",
+            "dependsOn": ["Copy to plugin folder"],
+            "dependsOrder": "sequence",
+            "problemMatcher": []
+        },
+    ]
+}
