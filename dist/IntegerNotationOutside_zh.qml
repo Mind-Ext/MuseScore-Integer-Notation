@@ -22,7 +22,7 @@ import MuseScore 3.0
 
 
 MuseScore {
-    version: "0.8.1 (465)"
+    version: "0.8.2 (465)"
     title: qsTr("整数记谱法（外部）")
     menuPath: "Plugins." + qsTr("整数记谱法（外部）")
     description: qsTr("在谱表外部添加整数记谱或简谱数字")
@@ -569,7 +569,7 @@ MuseScore {
     function createChordText(chord, initialKeySig, currKeySig) {
         let pc1 = keySigToPitchClass(initialKeySig)
         let pc2 = keySigToPitchClass(currKeySig)
-        let offset = (pc2 + 12 - pc1) % 12
+        let offset = inputFollowKeyChange.checked ? (pc2 + 12 - pc1) % 12 : 0 
         if (offset > 6) {
             offset -= 12
         }
