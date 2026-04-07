@@ -1,0 +1,196 @@
+function keySigToPitchClass(keySig) {
+    const offsetToClass = [0, 7, 2, 9, 4, 11, 6, 1, 8, 3, 10, 5]
+    return offsetToClass[(keySig + 12)%12]
+}
+
+function keySigToNoteNames(keySig) {
+    // positive: sharp
+    // negative: flat
+    // [major, minor]
+    const mapping = {
+        "0": ["C", "A"],
+        "1": ["G", "E"],
+        "2": ["D", "B"],
+        "3": ["A", "F#"],
+        "4": ["E", "C#"],
+        "5": ["B", "G#"],
+        "6": ["F#", "D#"],
+        "7": ["C#", "A#"],
+        "-1": ["F", "D"],
+        "-2": ["Bb", "G"],
+        "-3": ["Eb", "C"],
+        "-4": ["Ab", "F"],
+        "-5": ["Db", "Bb"],
+        "-6": ["Gb", "Eb"],
+        "-7": ["Cb", "Ab"]
+    }
+    return mapping[keySig.toString()]
+}
+
+function noteNumToNoteName(n) {
+    const noteNames = ["C", "C#/Db", "D", "D#/Eb", "E", "F", "F#/Gb", "G", "G#/Ab", "A", "A#/Bb", "B"]
+    return noteNames[(n+1200) % 12]
+}
+
+function getKeySigText() {
+    var cursor = curScore.newCursor()
+    if (curScore.selection.elements.length) {
+        cursor.rewind(Cursor.SELECTION_START)
+    } else {
+        cursor.rewind(Cursor.SCORE_START)
+    }
+    // rewind prevents crash on 4.6
+    var keySigOffset = cursor.keySignature
+    var prefix = "{{inital_key}}"
+    if (isNaN(keySigOffset)) {
+        return prefix + "{{unknown}}"
+    }
+    var pitchClass = keySigToPitchClass(keySigOffset)
+    var noteNames = keySigToNoteNames(keySigOffset)
+
+    var keySigText = `${noteNames[0]}{{ key_signature_major_label }} / ${noteNames[1]}{{ key_signature_minor_label }}`
+    if (keySigOffset != 0) {
+        const symbol = keySigOffset > 0 ? "#" : "b"
+        // const symbol = keySigOffset > 0 ? "♯" : "♭"
+        keySigText = `(${symbol}×${Math.abs(keySigOffset)}) ${keySigText}`
+    }
+
+    var refNote = pitchClass + 60
+    if (refNote >= 67) {
+        refNote -= 12
+    }
+    var oct = Math.floor(refNote / 12) - 1
+    // special case for Cb (C4=60, Cb4=59, B3=59)
+    if (noteNames[0] == "Cb") {
+        oct += 1
+    }
+    inputReferenceNote.value = refNote
+    return `${prefix}${keySigText}, ${noteNames[0]}${oct}=${refNote}`
+}
+
+function getNoteText(pitchClass) {
+    let formats = []
+    formats.push(["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"])
+    formats.push(["1", "b2", "2", "b3", "3", "4", "b5", "5", "b6", "6", "b7", "7"])
+    formats.push(["1", "#1", "2", "#2", "3", "4", "#4", "5", "#5", "6", "#6", "7"])
+    let notation = formats[inputNotationFormat.currentIndex]
+    let noteText = notation[pitchClass]
+    if ("#b".includes(noteText[0])) {
+        noteText = "<sup>" + noteText[0] + "</sup>" + noteText[1]
+    }
+    return noteText
+}
+
+function getRefNote(initialKeySig, currKeySig) {
+    let pc1 = keySigToPitchClass(initialKeySig)
+    let pc2 = keySigToPitchClass(currKeySig)
+    let offset = inputFollowKeyChange.checked ? (pc2 + 12 - pc1) % 12 : 0
+    if (offset > 6) {
+        offset -= 12
+    }
+    return inputReferenceNote.value + offset
+}
+
+function createNoteTextForPitch(notePitch, refNote) {
+    let relPitchClass = (notePitch - refNote + 1200) % 12
+    let relativeOctave = Math.floor((notePitch - refNote) / 12)
+    let dot = "•"
+    let text = ""
+    if (relativeOctave > 0 && inputOctaveDots.checked)
+        text += "<sup>" + dot.repeat(relativeOctave) + "</sup>"
+    if (relativeOctave < 0 && inputOctaveDots.checked)
+        text += "<sub>" + dot.repeat(-relativeOctave) + "</sub>"
+    text += getNoteText(relPitchClass)
+    return text
+}
+
+function createRefNoteSigText(initialKeySig, currKeySig) {
+    let pc1 = keySigToPitchClass(initialKeySig)
+    let pc2 = keySigToPitchClass(currKeySig)
+    let keyChangeOffset = inputFollowKeyChange.checked ? (pc2 + 12 - pc1) % 12 : 0
+    if (keyChangeOffset > 6) {
+        keyChangeOffset -= 12
+    }
+    let newRefNote = inputReferenceNote.value + keyChangeOffset
+    let [keyNameMajor, keyNameMinor] = ["", ""]
+    if (newRefNote % 12 === pc1) {
+        [keyNameMajor, keyNameMinor] = keySigToNoteNames(initialKeySig)
+    } else if (newRefNote % 12 === pc2) {
+        [keyNameMajor, keyNameMinor] = keySigToNoteNames(currKeySig)
+    } else {
+        keyNameMajor = noteNumToNoteName(newRefNote)
+        keyNameMinor = noteNumToNoteName(newRefNote - 3)
+    }
+    let keyName = keyNameMajor
+    let prefix = ""
+    let octave = ""
+    let suffix = ""
+    if (inputRefSigFormat.currentIndex == 0)  {
+        prefix += inputNotationFormat.currentIndex == 0 ? "0=" : "1="
+        // major key
+    } else if (inputRefSigFormat.currentIndex == 1) {
+        prefix += inputNotationFormat.currentIndex == 0 ? "9=" : "6="
+        keyName = keyNameMinor
+        // minor key
+        newRefNote += 9
+    }
+    if (inputOctaveDots.checked) {
+        octave = Math.floor(newRefNote / 12) - 1
+        if (keyName == "Cb") {
+            octave += 1
+        }
+        suffix = ` (${newRefNote})`
+    }
+    let el = newElement(Element.STAFF_TEXT)
+    el.text = `${prefix}${keyName}${octave}${suffix}`
+    return el
+}
+
+function mainShared(processChord) {
+    let fullScore = !curScore.selection.elements.length
+    if (fullScore) {
+        cmd("select-all")
+    }
+    let cursor = curScore.newCursor()
+    cursor.rewind(Cursor.SELECTION_START)
+    let startStaff = cursor.staffIdx
+    cursor.rewind(Cursor.SELECTION_END)
+    let endStaff = cursor.staffIdx
+    let endTick = cursor.tick == 0 ? curScore.lastSegment.tick + 1 : cursor.tick
+
+    cursor.rewind(Cursor.SELECTION_START)
+    let initialKeySig = cursor.keySignature
+    let prevKeySig
+    let currKeySig
+
+    for (let staff = startStaff; staff <= endStaff; staff++) {
+        for (let voice = 0; voice < 4; voice++) {
+            cursor.rewind(Cursor.SELECTION_START)
+            cursor.voice = voice
+            cursor.staffIdx = staff
+
+            while (cursor.segment && cursor.tick < endTick) {
+                if (cursor.element
+                && (cursor.element.type == Element.CHORD
+                || cursor.element.type == Element.REST)) {
+                    currKeySig = cursor.keySignature
+                    if (prevKeySig !== currKeySig) {
+                        if (inputRefSigFormat.currentIndex !== 2 && voice === 0 && staff === 0) {
+                            if (inputFollowKeyChange.checked || prevKeySig === undefined) {
+                                cursor.add(createRefNoteSigText(initialKeySig, currKeySig))
+                            }
+                        }
+                        prevKeySig = currKeySig
+                    }
+                }
+                if (cursor.element && cursor.element.type == Element.CHORD) {
+                    processChord(cursor, cursor.element, initialKeySig, currKeySig, staff)
+                }
+                cursor.next()
+            }
+        }
+    }
+    if (fullScore) {
+        cmd("escape")
+    }
+}

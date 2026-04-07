@@ -375,68 +375,25 @@ MuseScore {
             quit()
     }
 
-    function keySigToPitchClass(keySig) {
-        const offsetToClass = [0, 7, 2, 9, 4, 11, 6, 1, 8, 3, 10, 5]
-        return offsetToClass[(keySig + 12)%12]
+{{ shared_functions }}
+
+    function main() {
+        mainShared(processChordOutside)
     }
 
-    function keySigToNoteNames(keySig) {
-        const mapping = {
-            "0": ["C", "A"],
-            "1": ["G", "E"],
-            "2": ["D", "B"],
-            "3": ["A", "F#"],
-            "4": ["E", "C#"],
-            "5": ["B", "G#"],
-            "6": ["F#", "D#"],
-            "7": ["C#", "A#"],
-            "-1": ["F", "D"],
-            "-2": ["Bb", "G"],
-            "-3": ["Eb", "C"],
-            "-4": ["Ab", "F"],
-            "-5": ["Db", "Bb"],
-            "-6": ["Gb", "Eb"],
-            "-7": ["Cb", "Ab"]
-        }
-        return mapping[keySig.toString()]
-    }
+    function processChordOutside(cursor, chord, initialKeySig, currKeySig, staff) {
+        let chordSymbolPresent = hasChordSymbol(cursor.segment, staff)
+        let refNote = getRefNote(initialKeySig, currKeySig)
 
-    function noteNumToNoteName(n) {
-        const noteNames = ["C", "C#/Db", "D", "D#/Eb", "E", "F", "F#/Gb", "G", "G#/Ab", "A", "A#/Bb", "B"]
-        return noteNames[(n+1200) % 12]
-    }
-
-    function getKeySigText() {
-        var cursor = curScore.newCursor()
-        if (curScore.selection.elements.length) {
-            cursor.rewind(Cursor.SELECTION_START)
-        } else {
-            cursor.rewind(Cursor.SCORE_START)
+        let graceChords = chord.graceNotes
+        for (let i = 0; i < graceChords.length; i++) {
+            let textEl = createChordText(graceChords[i], refNote)
+            formatText(textEl, true, graceChords.length - i, chordSymbolPresent)
+            cursor.add(textEl)
         }
-        var keySigOffset = cursor.keySignature
-        var prefix = "{{inital_key}}"
-        if (isNaN(keySigOffset)) {
-            return prefix + "{{unknown}}"
-        }
-        var pitchClass = keySigToPitchClass(keySigOffset)
-        var noteNames = keySigToNoteNames(keySigOffset)
-
-        var keySigText = `${noteNames[0]}{{ key_signature_major_label }} / ${noteNames[1]}{{ key_signature_minor_label }}`
-        if (keySigOffset != 0) {
-            const symbol = keySigOffset > 0 ? "#" : "b"
-            keySigText = `(${symbol}×${Math.abs(keySigOffset)}) ${keySigText}`
-        }
-
-        var refNote = pitchClass + 60
-        if (refNote >= 67) {
-            refNote -= 12
-        }
-        var oct = Math.floor(refNote / 12) - 1
-        if (noteNames[0] == "Cb") {
-            oct += 1
-        }
-        inputReferenceNote.value = refNote
-        return `${prefix}${keySigText}, ${noteNames[0]}${oct}=${refNote}`
+        let textEl = createChordText(chord, refNote)
+        formatText(textEl, false, 0, chordSymbolPresent)
+        cursor.add(textEl)
     }
 
     // Check if segment has a chord symbol (Harmony element)
@@ -454,131 +411,9 @@ MuseScore {
         return false
     }
 
-    function main() {
-        let fullScore = !curScore.selection.elements.length
-        if (fullScore) {
-            cmd("select-all")
-        }
-        let cursor = curScore.newCursor()
-        cursor.rewind(Cursor.SELECTION_START)
-        let startStaff = cursor.staffIdx
-        cursor.rewind(Cursor.SELECTION_END)
-        let endStaff = cursor.staffIdx
-        let endTick = cursor.tick == 0 ? curScore.lastSegment.tick + 1 : cursor.tick
-
-        cursor.rewind(Cursor.SELECTION_START)
-        let initialKeySig = cursor.keySignature
-        let prevKeySig
-        let currKeySig
-
-        for (let staff = startStaff; staff <= endStaff; staff++) {
-            for (let voice = 0; voice < 4; voice++) {
-                cursor.rewind(Cursor.SELECTION_START)
-                cursor.voice = voice
-                cursor.staffIdx = staff
-
-                while (cursor.segment && cursor.tick < endTick) {
-                    if (cursor.element
-                    && (cursor.element.type == Element.CHORD
-                    || cursor.element.type == Element.REST)) {
-                        currKeySig = cursor.keySignature
-                        if (prevKeySig !== currKeySig) {
-                            if (inputRefSigFormat.currentIndex !== 2 && voice === 0 && staff === 0) {
-                                if (inputFollowKeyChange.checked || prevKeySig === undefined) {
-                                    cursor.add(createRefNoteSigText(initialKeySig, currKeySig))
-                                }
-                            }
-                            prevKeySig = currKeySig
-                        }
-                    }
-                    if (cursor.element && cursor.element.type == Element.CHORD) {
-                        let chordSymbolPresent = hasChordSymbol(cursor.segment, staff)
-                        
-                        let graceChords = cursor.element.graceNotes
-                        for (let i = 0; i < graceChords.length; i++) {
-                            let textEl = createChordText(graceChords[i], initialKeySig, currKeySig)
-                            formatText(textEl, true, graceChords.length - i, chordSymbolPresent)
-                            cursor.add(textEl)
-                        }
-                        let textEl = createChordText(cursor.element, initialKeySig, currKeySig)
-                        formatText(textEl, false, 0, chordSymbolPresent)
-                        cursor.add(textEl)
-                    }   
-                    cursor.next()
-                }
-            }
-        }
-        if (fullScore) {
-            cmd("escape")
-        }
-    }
-
-    function getNoteText(pitchClass) {
-        let formats = []
-        formats.push(["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"])
-        formats.push(["1", "b2", "2", "b3", "3", "4", "b5", "5", "b6", "6", "b7", "7"])
-        formats.push(["1", "#1", "2", "#2", "3", "4", "#4", "5", "#5", "6", "#6", "7"])
-        let notation = formats[inputNotationFormat.currentIndex]
-        let noteText = notation[pitchClass]
-        if ("#b".includes(noteText[0])) {
-            noteText = "<sup>" + noteText[0] + "</sup>" + noteText[1]
-        }
-        return noteText
-    }
-
-    function createRefNoteSigText(initialKeySig, currKeySig) {
-        let pc1 = keySigToPitchClass(initialKeySig)
-        let pc2 = keySigToPitchClass(currKeySig)
-        let keyChangeOffset =  inputFollowKeyChange.checked ? (pc2 + 12 - pc1) % 12 : 0
-        if (keyChangeOffset > 6) {
-            keyChangeOffset -= 12
-        }
-        let newRefNote = inputReferenceNote.value + keyChangeOffset
-        let [keyNameMajor, keyNameMinor] = ["", ""]
-        if (newRefNote % 12 === pc1) {
-            [keyNameMajor, keyNameMinor] = keySigToNoteNames(initialKeySig)
-        } else if (newRefNote % 12 === pc2) {
-            [keyNameMajor, keyNameMinor] = keySigToNoteNames(currKeySig)
-        } else {
-            keyNameMajor = noteNumToNoteName(newRefNote)
-            keyNameMinor = noteNumToNoteName(newRefNote - 3)
-        }
-        let keyName = keyNameMajor
-        let prefix = ""
-        let octave = ""
-        let suffix = ""
-        if (inputRefSigFormat.currentIndex == 0)  {
-            prefix += inputNotationFormat.currentIndex == 0 ? "0=" : "1="
-        } else if (inputRefSigFormat.currentIndex == 1) {
-            prefix += inputNotationFormat.currentIndex == 0 ? "9=" : "6="
-            keyName = keyNameMinor
-            newRefNote += 9
-        }
-        if (inputOctaveDots.checked) {
-            octave = Math.floor(newRefNote / 12) - 1
-            if (keyName == "Cb") {
-                octave += 1
-            }
-            suffix = ` (${newRefNote})`
-        }
-        let el = newElement(Element.STAFF_TEXT)
-        el.text = `${prefix}${keyName}${octave}${suffix}`
-        return el
-    }
-
-    function createChordText(chord, initialKeySig, currKeySig) {
-        let pc1 = keySigToPitchClass(initialKeySig)
-        let pc2 = keySigToPitchClass(currKeySig)
-        let offset = inputFollowKeyChange.checked ? (pc2 + 12 - pc1) % 12 : 0 
-        if (offset > 6) {
-            offset -= 12
-        }
-        let refNote = inputReferenceNote.value + offset
-
+    function createChordText(chord, refNote) {
         let el = newElement(Element.STAFF_TEXT)
         let notes = chord.notes
-        let dot = "•"
-        let text = ""
 
         let selectedNotes = notes
         if (notes.length > 0) {
@@ -592,18 +427,8 @@ MuseScore {
         let noteTexts = []
         for (let i = 0; i < selectedNotes.length; i++) {
             let note = selectedNotes[i]
-
             if (note.tieBack == null) {  // skip tied notes
-                let relPitchClass = (note.pitch - refNote + 1200) % 12
-                let relativeOctave = Math.floor((note.pitch - refNote) / 12)
-
-                let noteText = ""
-                if (relativeOctave > 0 && inputOctaveDots.checked)
-                    noteText += "<sup>" + dot.repeat(relativeOctave) + "</sup>"
-                if (relativeOctave < 0 && inputOctaveDots.checked)
-                    noteText += "<sub>" + dot.repeat(-relativeOctave) + "</sub>"
-                noteText += getNoteText(relPitchClass)
-                noteTexts.push(noteText)
+                noteTexts.push(createNoteTextForPitch(note.pitch, refNote))
             }
         }
 
@@ -622,13 +447,13 @@ MuseScore {
             textEl.color = inputTextColor.text
             textEl.offsetX = parseFloat(inputXOffset.text)
             textEl.offsetY = parseFloat(inputYOffset.text)
-            
+
             // If there's a chord symbol and placement is Above, add extra Y offset
             // to position the number below the chord symbol
             if (hasChordSym && inputPlacement.currentIndex == 0) {
                 textEl.offsetY += parseFloat(inputChordSymbolOffset.text)
             }
-            
+
             if (isGrace) {
                 textEl.fontSize = textEl.fontSize * 0.7
                 textEl.offsetX += -1.5 * graceOffset
@@ -637,4 +462,4 @@ MuseScore {
             textEl.subStyle = inputStyleGroup.model.get(inputStyleGroup.currentIndex).value + 4
         }
     }
-}
+} // end MuseScore
