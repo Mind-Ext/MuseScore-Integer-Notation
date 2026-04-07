@@ -6,7 +6,12 @@
         {
             "label": "Translate",
             "type": "shell",
-            "command": "python translate.py",
+            "command": "uv run translate.py",
+            "options": {
+                "env": {
+                    "PATH": "/home/linuxbrew/.linuxbrew/bin:${env:PATH}"
+                }
+            }
         },
         {
             "label": "Copy to plugin folder",
