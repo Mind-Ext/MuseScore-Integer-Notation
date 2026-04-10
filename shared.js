@@ -1,6 +1,6 @@
 function keySigToPitchClass(keySig) {
     const offsetToClass = [0, 7, 2, 9, 4, 11, 6, 1, 8, 3, 10, 5]
-    return offsetToClass[(keySig + 12)%12]
+    return offsetToClass[(keySig + 12) % 12]
 }
 
 function keySigToNoteNames(keySig) {
@@ -29,7 +29,7 @@ function keySigToNoteNames(keySig) {
 
 function noteNumToNoteName(n) {
     const noteNames = ["C", "C#/Db", "D", "D#/Eb", "E", "F", "F#/Gb", "G", "G#/Ab", "A", "A#/Bb", "B"]
-    return noteNames[(n+1200) % 12]
+    return noteNames[(n + 1200) % 12]
 }
 
 function getKeySigText() {
@@ -125,7 +125,7 @@ function createRefNoteSigText(initialKeySig, currKeySig) {
     let prefix = ""
     let octave = ""
     let suffix = ""
-    if (inputRefSigFormat.currentIndex == 0)  {
+    if (inputRefSigFormat.currentIndex == 0) {
         prefix += inputNotationFormat.currentIndex == 0 ? "0=" : "1="
         // major key
     } else if (inputRefSigFormat.currentIndex == 1) {
@@ -146,6 +146,50 @@ function createRefNoteSigText(initialKeySig, currKeySig) {
     return el
 }
 
+function buildOttavaCache() {
+    const cache = []
+    const pitchShifts = [12, -12, 24, -24, 36, -36]
+
+    // MS 4.7 new property spanners https://github.com/musescore/MuseScore/pull/31060
+    let elements = curScore.spanners || curScore.selection.elements
+
+    // 2. Populate the cache (works for both user selection or full score)
+    for (let i = 0; i < elements.length; i++) {
+        const el = elements[i]
+
+        // Note: In some newer MS4 versions, selections return OTTAVA_SEGMENT 
+        // instead of OTTAVA, so it is safest to check for both
+        if (el.type === Element.OTTAVA || el.type === Element.OTTAVA_SEGMENT) {
+
+            // If it's a segment, we need its parent Spanner to get the true type
+            const spanner = (el.type === Element.OTTAVA_SEGMENT) ? el.spanner : el
+            const oT = spanner.ottavaType
+
+            const shift = (oT >= 0 && oT < pitchShifts.length) ? pitchShifts[oT] : 0
+
+            cache.push({
+                staff: Math.floor(spanner.track / 4),
+                start: spanner.spannerTick.ticks,
+                end: spanner.spannerTick.ticks + spanner.spannerTicks.ticks,
+                pitchShift: shift
+            })
+        }
+    }
+
+    return cache
+}
+
+function getOttavaShift(tick, staffIdx, ottavaCache) {
+    let shift = 0
+    for (let i = 0; i < ottavaCache.length; i++) {
+        const ottava = ottavaCache[i]
+        if (staffIdx === ottava.staff && tick >= ottava.start && tick < ottava.end) {
+            shift = ottava.pitchShift
+        }
+    }
+    return shift
+}
+
 function mainShared(processChord) {
     let fullScore = !curScore.selection.elements.length
     if (fullScore) {
@@ -163,6 +207,8 @@ function mainShared(processChord) {
     let prevKeySig
     let currKeySig
 
+    const ottavaCache = buildOttavaCache()
+
     for (let staff = startStaff; staff <= endStaff; staff++) {
         for (let voice = 0; voice < 4; voice++) {
             cursor.rewind(Cursor.SELECTION_START)
@@ -171,8 +217,8 @@ function mainShared(processChord) {
 
             while (cursor.segment && cursor.tick < endTick) {
                 if (cursor.element
-                && (cursor.element.type == Element.CHORD
-                || cursor.element.type == Element.REST)) {
+                    && (cursor.element.type == Element.CHORD
+                        || cursor.element.type == Element.REST)) {
                     currKeySig = cursor.keySignature
                     if (prevKeySig !== currKeySig) {
                         if (inputRefSigFormat.currentIndex !== 2 && voice === 0 && staff === 0) {
@@ -184,7 +230,8 @@ function mainShared(processChord) {
                     }
                 }
                 if (cursor.element && cursor.element.type == Element.CHORD) {
-                    processChord(cursor, cursor.element, initialKeySig, currKeySig, staff)
+                    const pitchShift = getOttavaShift(cursor.tick, staff, ottavaCache)
+                    processChord(cursor, cursor.element, initialKeySig, currKeySig, staff, pitchShift)
                 }
                 cursor.next()
             }

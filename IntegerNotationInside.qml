@@ -404,7 +404,7 @@ MuseScore {
         mainShared(processChordInside)
     }
 
-    function processChordInside(cursor, chord, initialKeySig, currKeySig, staff) {
+    function processChordInside(cursor, chord, initialKeySig, currKeySig, staff, pitchShift) {
         //     let staff = cursor.element.staff
         //     staff.staffLines = 1
         //     staff.lineDistance = 1.25
@@ -414,12 +414,12 @@ MuseScore {
 
         let graceChords = chord.graceNotes
         for (let i = 0; i < graceChords.length; i++) {
-            transformNotes(graceChords[i], true, initialKeySig, currKeySig)
+            transformNotes(graceChords[i], true, initialKeySig, currKeySig, pitchShift)
         }
-        transformNotes(chord, false, initialKeySig, currKeySig)
+        transformNotes(chord, false, initialKeySig, currKeySig, pitchShift)
     }
 
-    function transformNotes(chord, isGrace, initialKeySig, currentKeySig) {
+    function transformNotes(chord, isGrace, initialKeySig, currentKeySig, pitchShift) {
         // const invisibleColor = rgbToHex([240,240,240]) // f0f0f0
         // const invisibleColor = "#f3f3f3"
         // const invisibleColor = "#f9f9f9" // 249, page background color
@@ -429,7 +429,7 @@ MuseScore {
             let note = notes[i]
             let refNote = getRefNote(initialKeySig, currentKeySig)
             let textEl = newElement(Element.FINGERING)
-            textEl.text = createNoteTextForPitch(note.pitch, refNote)
+            textEl.text = createNoteTextForPitch(note.pitch + pitchShift, refNote)
             formatText(textEl, isGrace)
             if (["1/2","3/4","7/8","15/16","31/32"].includes(chord.duration.str)) {
                 // don't know how to get notehead type, so infer from duration

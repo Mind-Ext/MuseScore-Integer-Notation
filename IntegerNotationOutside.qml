@@ -381,17 +381,17 @@ MuseScore {
         mainShared(processChordOutside)
     }
 
-    function processChordOutside(cursor, chord, initialKeySig, currKeySig, staff) {
+    function processChordOutside(cursor, chord, initialKeySig, currKeySig, staff, pitchShift) {
         let chordSymbolPresent = hasChordSymbol(cursor.segment, staff)
         let refNote = getRefNote(initialKeySig, currKeySig)
 
         let graceChords = chord.graceNotes
         for (let i = 0; i < graceChords.length; i++) {
-            let textEl = createChordText(graceChords[i], refNote)
+            let textEl = createChordText(graceChords[i], refNote, pitchShift)
             formatText(textEl, true, graceChords.length - i, chordSymbolPresent)
             cursor.add(textEl)
         }
-        let textEl = createChordText(chord, refNote)
+        let textEl = createChordText(chord, refNote, pitchShift)
         formatText(textEl, false, 0, chordSymbolPresent)
         cursor.add(textEl)
     }
@@ -411,7 +411,7 @@ MuseScore {
         return false
     }
 
-    function createChordText(chord, refNote) {
+    function createChordText(chord, refNote, pitchShift) {
         let el = newElement(Element.STAFF_TEXT)
         let notes = chord.notes
 
@@ -428,7 +428,7 @@ MuseScore {
         for (let i = 0; i < selectedNotes.length; i++) {
             let note = selectedNotes[i]
             if (note.tieBack == null) {  // skip tied notes
-                noteTexts.push(createNoteTextForPitch(note.pitch, refNote))
+                noteTexts.push(createNoteTextForPitch(note.pitch + pitchShift, refNote))
             }
         }
 
