@@ -30,6 +30,26 @@ MuseScore {
     width: 320
     height: 620
 
+    Settings {
+        id: settings
+        category: "IntegerNotationOutside"
+        property alias notationFormat: inputNotationFormat.currentIndex
+        // property alias referenceNote: inputReferenceNote.value
+        property alias refSigFormat: inputRefSigFormat.currentIndex
+        property alias followKeyChange: inputFollowKeyChange.checked
+        property alias octaveDots: inputOctaveDots.checked
+        property alias chordNotesDisplay: inputChordNotesDisplay.currentIndex
+        property alias placement: inputPlacement.currentIndex
+        property alias autoPlacement: inputAutoPlacement.checked
+        property alias fontSize: inputFontSize.text
+        property alias fontFace: inputFontFace.text
+        property alias textColor: inputTextColor.text
+        property alias xOffset: inputXOffset.text
+        property alias yOffset: inputYOffset.text
+        property alias chordSymbolOffset: inputChordSymbolOffset.text
+        property alias styleGroup: inputStyleGroup.currentIndex
+    }
+
     ColumnLayout {
         id: column1
         x: 10
