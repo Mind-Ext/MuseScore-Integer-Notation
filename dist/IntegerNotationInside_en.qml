@@ -22,13 +22,32 @@ import MuseScore 3.0
 
 
 MuseScore {
-    version: "0.8.2 (465)"
+    version: "0.9.0 (465)"
     title: qsTr("Integer Notation")
     menuPath: "Plugins." + qsTr("Integer Notation")
     description: qsTr("Replace noteheads with Integer Notation or Numbered Notation")
     pluginType: "dialog"
     width: 320  // menu window size
     height: 600
+
+    Settings {
+        id: settings
+        category: "IntegerNotationInside"
+        property alias notationFormat: inputNotationFormat.currentIndex
+        // property alias referenceNote: inputReferenceNote.value // do not persist
+        property alias refSigFormat: inputRefSigFormat.currentIndex
+        property alias followKeyChange: inputFollowKeyChange.checked
+        property alias octaveDots: inputOctaveDots.checked
+        property alias noteheadLeft: inputNoteheadLeft.checked
+        property alias reposition: inputReposition.currentIndex
+        property alias fontSize: inputFontSize.text
+        property alias fontFace: inputFontFace.text
+        property alias textColor: inputTextColor.text
+        property alias xOffset: inputXOffset.text
+        property alias hideMethod: inputHideMethod.currentIndex
+        property alias color: inputColor.text
+        property alias styleGroup: inputStyleGroup.currentIndex
+    }
 
     ColumnLayout {
         id: column1
@@ -370,7 +389,7 @@ MuseScore {
 
     function keySigToPitchClass(keySig) {
         const offsetToClass = [0, 7, 2, 9, 4, 11, 6, 1, 8, 3, 10, 5]
-        return offsetToClass[(keySig + 12)%12]
+        return offsetToClass[(keySig + 12) % 12]
     }
 
     function keySigToNoteNames(keySig) {
@@ -399,7 +418,7 @@ MuseScore {
 
     function noteNumToNoteName(n) {
         const noteNames = ["C", "C#/Db", "D", "D#/Eb", "E", "F", "F#/Gb", "G", "G#/Ab", "A", "A#/Bb", "B"]
-        return noteNames[(n+1200) % 12]
+        return noteNames[(n + 1200) % 12]
     }
 
     function getKeySigText() {
@@ -438,6 +457,180 @@ MuseScore {
         return `${prefix}${keySigText}, ${noteNames[0]}${oct}=${refNote}`
     }
 
+    function getNoteText(pitchClass) {
+        let formats = []
+        formats.push(["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"])
+        formats.push(["1", "b2", "2", "b3", "3", "4", "b5", "5", "b6", "6", "b7", "7"])
+        formats.push(["1", "#1", "2", "#2", "3", "4", "#4", "5", "#5", "6", "#6", "7"])
+        let notation = formats[inputNotationFormat.currentIndex]
+        let noteText = notation[pitchClass]
+        if ("#b".includes(noteText[0])) {
+            noteText = "<sup>" + noteText[0] + "</sup>" + noteText[1]
+        }
+        return noteText
+    }
+
+    function getRefNote(initialKeySig, currKeySig) {
+        let pc1 = keySigToPitchClass(initialKeySig)
+        let pc2 = keySigToPitchClass(currKeySig)
+        let offset = inputFollowKeyChange.checked ? (pc2 + 12 - pc1) % 12 : 0
+        if (offset > 6) {
+            offset -= 12
+        }
+        return inputReferenceNote.value + offset
+    }
+
+    function createNoteTextForPitch(notePitch, refNote) {
+        let relPitchClass = (notePitch - refNote + 1200) % 12
+        let relativeOctave = Math.floor((notePitch - refNote) / 12)
+        let dot = "•"
+        let text = ""
+        if (relativeOctave > 0 && inputOctaveDots.checked)
+            text += "<sup>" + dot.repeat(relativeOctave) + "</sup>"
+        if (relativeOctave < 0 && inputOctaveDots.checked)
+            text += "<sub>" + dot.repeat(-relativeOctave) + "</sub>"
+        text += getNoteText(relPitchClass)
+        return text
+    }
+
+    function createRefNoteSigText(initialKeySig, currKeySig) {
+        let pc1 = keySigToPitchClass(initialKeySig)
+        let pc2 = keySigToPitchClass(currKeySig)
+        let keyChangeOffset = inputFollowKeyChange.checked ? (pc2 + 12 - pc1) % 12 : 0
+        if (keyChangeOffset > 6) {
+            keyChangeOffset -= 12
+        }
+        let newRefNote = inputReferenceNote.value + keyChangeOffset
+        let [keyNameMajor, keyNameMinor] = ["", ""]
+        if (newRefNote % 12 === pc1) {
+            [keyNameMajor, keyNameMinor] = keySigToNoteNames(initialKeySig)
+        } else if (newRefNote % 12 === pc2) {
+            [keyNameMajor, keyNameMinor] = keySigToNoteNames(currKeySig)
+        } else {
+            keyNameMajor = noteNumToNoteName(newRefNote)
+            keyNameMinor = noteNumToNoteName(newRefNote - 3)
+        }
+        let keyName = keyNameMajor
+        let prefix = ""
+        let octave = ""
+        let suffix = ""
+        if (inputRefSigFormat.currentIndex == 0) {
+            prefix += inputNotationFormat.currentIndex == 0 ? "0=" : "1="
+            // major key
+        } else if (inputRefSigFormat.currentIndex == 1) {
+            prefix += inputNotationFormat.currentIndex == 0 ? "9=" : "6="
+            keyName = keyNameMinor
+            // minor key
+            newRefNote += 9
+        }
+        if (inputOctaveDots.checked) {
+            octave = Math.floor(newRefNote / 12) - 1
+            if (keyName == "Cb") {
+                octave += 1
+            }
+            suffix = ` (${newRefNote})`
+        }
+        let el = newElement(Element.STAFF_TEXT)
+        el.text = `${prefix}${keyName}${octave}${suffix}`
+        return el
+    }
+
+    function buildOttavaCache() {
+        const cache = []
+        const pitchShifts = [12, -12, 24, -24, 36, -36]
+
+        // MS 4.7 new property spanners https://github.com/musescore/MuseScore/pull/31060
+        let elements = curScore.spanners || curScore.selection.elements
+
+        // 2. Populate the cache (works for both user selection or full score)
+        for (let i = 0; i < elements.length; i++) {
+            const el = elements[i]
+
+            // Note: In some newer MS4 versions, selections return OTTAVA_SEGMENT 
+            // instead of OTTAVA, so it is safest to check for both
+            if (el.type === Element.OTTAVA || el.type === Element.OTTAVA_SEGMENT) {
+
+                // If it's a segment, we need its parent Spanner to get the true type
+                const spanner = (el.type === Element.OTTAVA_SEGMENT) ? el.spanner : el
+                const oT = spanner.ottavaType
+
+                const shift = (oT >= 0 && oT < pitchShifts.length) ? pitchShifts[oT] : 0
+
+                cache.push({
+                    staff: Math.floor(spanner.track / 4),
+                    start: spanner.spannerTick.ticks,
+                    end: spanner.spannerTick.ticks + spanner.spannerTicks.ticks,
+                    pitchShift: shift
+                })
+            }
+        }
+
+        return cache
+    }
+
+    function getOttavaShift(tick, staffIdx, ottavaCache) {
+        let shift = 0
+        for (let i = 0; i < ottavaCache.length; i++) {
+            const ottava = ottavaCache[i]
+            if (staffIdx === ottava.staff && tick >= ottava.start && tick < ottava.end) {
+                shift = ottava.pitchShift
+            }
+        }
+        return shift
+    }
+
+    function mainShared(processChord) {
+        let fullScore = !curScore.selection.elements.length
+        if (fullScore) {
+            cmd("select-all")
+        }
+        let cursor = curScore.newCursor()
+        cursor.rewind(Cursor.SELECTION_START)
+        let startStaff = cursor.staffIdx
+        cursor.rewind(Cursor.SELECTION_END)
+        let endStaff = cursor.staffIdx
+        let endTick = cursor.tick == 0 ? curScore.lastSegment.tick + 1 : cursor.tick
+
+        cursor.rewind(Cursor.SELECTION_START)
+        let initialKeySig = cursor.keySignature
+        let prevKeySig
+        let currKeySig
+
+        const ottavaCache = buildOttavaCache()
+
+        for (let staff = startStaff; staff <= endStaff; staff++) {
+            for (let voice = 0; voice < 4; voice++) {
+                cursor.rewind(Cursor.SELECTION_START)
+                cursor.voice = voice
+                cursor.staffIdx = staff
+
+                while (cursor.segment && cursor.tick < endTick) {
+                    if (cursor.element
+                        && (cursor.element.type == Element.CHORD
+                            || cursor.element.type == Element.REST)) {
+                        currKeySig = cursor.keySignature
+                        if (prevKeySig !== currKeySig) {
+                            if (inputRefSigFormat.currentIndex !== 2 && voice === 0 && staff === 0) {
+                                if (inputFollowKeyChange.checked || prevKeySig === undefined) {
+                                    cursor.add(createRefNoteSigText(initialKeySig, currKeySig))
+                                }
+                            }
+                            prevKeySig = currKeySig
+                        }
+                    }
+                    if (cursor.element && cursor.element.type == Element.CHORD) {
+                        const pitchShift = getOttavaShift(cursor.tick, staff, ottavaCache)
+                        processChord(cursor, cursor.element, initialKeySig, currKeySig, staff, pitchShift)
+                    }
+                    cursor.next()
+                }
+            }
+        }
+        if (fullScore) {
+            cmd("escape")
+        }
+    }
+
     function formatText(textEl, isGrace) {
         if (inputStyleGroup.currentIndex == 0) {
             // as of MS 4.4, 59 = User-7, 64 = User-12
@@ -469,74 +662,25 @@ MuseScore {
     }
 
     function main() {
-        let fullScore = !curScore.selection.elements.length
-        if (fullScore) {
-            cmd("select-all")
+        mainShared(processChordInside)
+    }
+
+    function processChordInside(cursor, chord, initialKeySig, currKeySig, staff, pitchShift) {
+        //     let staff = cursor.element.staff
+        //     staff.staffLines = 1
+        //     staff.lineDistance = 1.25
+        //     staffModified = true
+        // staff properties not exposed as api
+        // see https://musescore.org/en/node/310685
+
+        let graceChords = chord.graceNotes
+        for (let i = 0; i < graceChords.length; i++) {
+            transformNotes(graceChords[i], true, initialKeySig, currKeySig, pitchShift)
         }
-        let cursor = curScore.newCursor()
-        cursor.rewind(Cursor.SELECTION_START)
-        let startStaff = cursor.staffIdx
-        cursor.rewind(Cursor.SELECTION_END)
-        let endStaff = cursor.staffIdx
-        let endTick = cursor.tick == 0 ? curScore.lastSegment.tick + 1 : cursor.tick
+        transformNotes(chord, false, initialKeySig, currKeySig, pitchShift)
+    }
 
-        cursor.rewind(Cursor.SELECTION_START)
-        let initialKeySig = cursor.keySignature
-        let prevKeySig
-        let currKeySig
-        let log = ""
-
-        for (let staff = startStaff; staff <= endStaff; staff++) {
-            for (let voice = 0; voice < 4; voice++) {
-                cursor.rewind(Cursor.SELECTION_START)
-                cursor.voice = voice
-                cursor.staffIdx = staff
-
-                while (cursor.segment && cursor.tick < endTick) {
-                    if (cursor.element
-                    && (cursor.element.type == Element.CHORD
-                    || cursor.element.type == Element.REST)) {
-                        currKeySig = cursor.keySignature
-                        if (prevKeySig !== currKeySig) {
-                            if (inputRefSigFormat.currentIndex !== 2 && voice === 0 && staff === 0) {
-                                // add key signature text
-                                if (inputFollowKeyChange.checked || prevKeySig === undefined) {
-                                    cursor.add(createRefNoteSigText(initialKeySig, currKeySig))
-                                }
-                            }
-                            prevKeySig = currKeySig
-                        }
-                    }
-                    if (cursor.element && cursor.element.type == Element.CHORD) {
-                        //     let staff = cursor.element.staff
-                        //     staff.staffLines = 1
-                        //     staff.lineDistance = 1.25
-                        //     staffModified = true
-                        // staff properties not exposed as api
-                        // see https://musescore.org/en/node/310685
-                        
-                        let graceChords = cursor.element.graceNotes
-                        for (let i = 0; i < graceChords.length; i++) {
-                            transformNotes(graceChords[i], true, initialKeySig, currKeySig)
-                        }
-                        transformNotes(cursor.element, false, initialKeySig, currKeySig)
-                    }   
-                    cursor.next()
-                } // end while
-            } // end for voice
-        } // end for staff
-        if (log) {
-            const el = newElement(Element.SYSTEM_TEXT)
-            el.text = log
-            cursor.rewind(Cursor.SELECTION_START)
-            cursor.add(el)
-        }
-        if (fullScore) {
-            cmd("escape")
-        }
-    } // end function
-
-    function transformNotes(chord, isGrace, initialKeySig, currentKeySig) {
+    function transformNotes(chord, isGrace, initialKeySig, currentKeySig, pitchShift) {
         // const invisibleColor = rgbToHex([240,240,240]) // f0f0f0
         // const invisibleColor = "#f3f3f3"
         // const invisibleColor = "#f9f9f9" // 249, page background color
@@ -544,7 +688,9 @@ MuseScore {
         const invisibleColor = inputColor.text
         for (let i = 0; i < notes.length; i++) {
             let note = notes[i]
-            let textEl = createTextElement(note, initialKeySig, currentKeySig)
+            let refNote = getRefNote(initialKeySig, currentKeySig)
+            let textEl = newElement(Element.FINGERING)
+            textEl.text = createNoteTextForPitch(note.pitch + pitchShift, refNote)
             formatText(textEl, isGrace)
             if (["1/2","3/4","7/8","15/16","31/32"].includes(chord.duration.str)) {
                 // don't know how to get notehead type, so infer from duration
@@ -605,83 +751,4 @@ MuseScore {
             }
         }
     }
-
-    function getNoteText(pitchClass) {
-        let formats = []
-        formats.push(["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"])
-        formats.push(["1", "b2", "2", "b3", "3", "4", "b5", "5", "b6", "6", "b7", "7"])
-        formats.push(["1", "#1", "2", "#2", "3", "4", "#4", "5", "#5", "6", "#6", "7"])
-        let notation = formats[inputNotationFormat.currentIndex]
-        let noteText = notation[pitchClass]
-        if ("#b".includes(noteText[0])) {
-            noteText = "<sup>" + noteText[0] + "</sup>" + noteText[1]
-        }
-        return noteText
-    }
-
-    function createRefNoteSigText(initialKeySig, currKeySig) {
-        let pc1 = keySigToPitchClass(initialKeySig)
-        let pc2 = keySigToPitchClass(currKeySig)
-        let keyChangeOffset =  inputFollowKeyChange.checked ? (pc2 + 12 - pc1) % 12 : 0
-        if (keyChangeOffset > 6) {
-            keyChangeOffset -= 12
-        }
-        let newRefNote = inputReferenceNote.value + keyChangeOffset
-        let [keyNameMajor, keyNameMinor] = ["", ""]
-        if (newRefNote % 12 === pc1) {
-            [keyNameMajor, keyNameMinor] = keySigToNoteNames(initialKeySig)
-        } else if (newRefNote % 12 === pc2) {
-            [keyNameMajor, keyNameMinor] = keySigToNoteNames(currKeySig)
-        } else {
-            keyNameMajor = noteNumToNoteName(newRefNote)
-            keyNameMinor = noteNumToNoteName(newRefNote - 3)
-        }
-        let keyName = keyNameMajor
-        let prefix = ""
-        let octave = ""
-        let suffix = ""
-        if (inputRefSigFormat.currentIndex == 0)  {
-            prefix += inputNotationFormat.currentIndex == 0 ? "0=" : "1="
-            // major key
-        } else if (inputRefSigFormat.currentIndex == 1) {
-            prefix += inputNotationFormat.currentIndex == 0 ? "9=" : "6="
-            keyName = keyNameMinor
-            // minor key
-            newRefNote += 9
-        }
-        if (inputOctaveDots.checked) {
-            octave = Math.floor(newRefNote / 12) - 1
-            if (keyName == "Cb") {
-                octave += 1
-            }
-            suffix = ` (${newRefNote})`
-        }
-        let el = newElement(Element.STAFF_TEXT)
-        el.text = `${prefix}${keyName}${octave}${suffix}`
-        return el
-    }
-
-    function createTextElement(note, initialKeySig, currKeySig) {
-        let pc1 = keySigToPitchClass(initialKeySig)
-        let pc2 = keySigToPitchClass(currKeySig)
-        let offset = inputFollowKeyChange.checked ? (pc2 + 12 - pc1) % 12 : 0        
-        if (offset > 6) {
-            offset -= 12
-        }
-        let refNote = inputReferenceNote.value + offset
-
-        let el = newElement(Element.FINGERING)
-
-        let relPitchClass = (note.pitch - refNote + 1200) % 12
-        let relativeOctave = Math.floor((note.pitch - refNote) / 12)
-        let dot = "•"
-        let text = ""
-        if (relativeOctave > 0 && inputOctaveDots.checked)
-            text += "<sup>" + dot.repeat(relativeOctave) + "</sup>"
-        if (relativeOctave < 0 && inputOctaveDots.checked)
-            text += "<sub>" + dot.repeat(-relativeOctave) + "</sub>"
-        text += getNoteText(relPitchClass)
-        el.text = text
-        return el
-    } // end for note
 } // end MuseScore
