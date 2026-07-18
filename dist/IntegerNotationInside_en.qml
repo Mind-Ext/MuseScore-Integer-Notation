@@ -22,18 +22,19 @@ import MuseScore 3.0
 
 
 MuseScore {
-    version: "0.9.0 (465)"
+    version: "0.10.0 (473)"
     title: qsTr("Integer Notation")
     menuPath: "Plugins." + qsTr("Integer Notation")
     description: qsTr("Replace noteheads with Integer Notation or Numbered Notation")
     pluginType: "dialog"
     width: 320  // menu window size
-    height: 600
+    height: 640
 
     Settings {
         id: settings
         category: "IntegerNotationInside"
         property alias notationFormat: inputNotationFormat.currentIndex
+        property alias accidentalStyle: inputAccidentalStyle.currentIndex
         // property alias referenceNote: inputReferenceNote.value // do not persist
         property alias refSigFormat: inputRefSigFormat.currentIndex
         property alias followKeyChange: inputFollowKeyChange.checked
@@ -73,10 +74,33 @@ MuseScore {
                         text: "0~11"
                     }
                     ListElement {
-                        text: "1~7,♭"
+                        text: "1~7♭"
                     }
                     ListElement {
-                        text: "1~7,♯"
+                        text: "1~7♯"
+                    }
+                }
+            }
+        }
+
+        RowLayout {
+            Label {
+                text: "Accidental style"
+                Layout.fillWidth: true
+                enabled: inputNotationFormat.currentIndex != 0
+            }
+            ComboBox {
+                id: inputAccidentalStyle
+                Layout.alignment: Qt.AlignRight
+                Layout.preferredWidth: 140
+                currentIndex: 0
+                enabled: inputNotationFormat.currentIndex != 0
+                model: ListModel {
+                    ListElement {
+                        text: "Text (b/#)"
+                    }
+                    ListElement {
+                        text: "Symbol (♭/♯)"
                     }
                 }
             }
@@ -387,6 +411,7 @@ MuseScore {
             quit()
     }
 
+
     function keySigToPitchClass(keySig) {
         const offsetToClass = [0, 7, 2, 9, 4, 11, 6, 1, 8, 3, 10, 5]
         return offsetToClass[(keySig + 12) % 12]
@@ -419,6 +444,14 @@ MuseScore {
     function noteNumToNoteName(n) {
         const noteNames = ["C", "C#/Db", "D", "D#/Eb", "E", "F", "F#/Gb", "G", "G#/Ab", "A", "A#/Bb", "B"]
         return noteNames[(n + 1200) % 12]
+    }
+
+    function getNoteTextFormats(formatIndex, pitchClass) {
+        return [
+            ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"],
+            ["1", "b2", "2", "b3", "3", "4", "b5", "5", "b6", "6", "b7", "7"],
+            ["1", "#1", "2", "#2", "3", "4", "#4", "5", "#5", "6", "#6", "7"]
+        ][formatIndex][pitchClass]
     }
 
     function getKeySigText() {
@@ -458,14 +491,37 @@ MuseScore {
     }
 
     function getNoteText(pitchClass) {
-        let formats = []
-        formats.push(["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"])
-        formats.push(["1", "b2", "2", "b3", "3", "4", "b5", "5", "b6", "6", "b7", "7"])
-        formats.push(["1", "#1", "2", "#2", "3", "4", "#4", "5", "#5", "6", "#6", "7"])
-        let notation = formats[inputNotationFormat.currentIndex]
-        let noteText = notation[pitchClass]
-        if ("#b".includes(noteText[0])) {
-            noteText = "<sup>" + noteText[0] + "</sup>" + noteText[1]
+        let noteText = getNoteTextFormats(inputNotationFormat.currentIndex, pitchClass)
+        if (useSymbolAccidentals()) {
+            // Strip text accidental prefix; native symbol will be added separately
+            noteText = noteText.replace(/^[#b]+/, "")
+        } else {
+            noteText = formatScaleDegreeText(noteText)
+        }
+        return noteText
+    }
+
+    function useSymbolAccidentals() {
+        if (inputNotationFormat.currentIndex === 0) return false
+        if (typeof inputAccidentalStyle !== "undefined") {
+            return inputAccidentalStyle.currentIndex === 1
+        }
+        return false
+    }
+
+    function getScaleDegreeAccidentalCount(pitchClass) {
+        let formatIndex = inputNotationFormat.currentIndex
+        if (formatIndex === 0) return 0
+        let noteText = getNoteTextFormats(formatIndex, pitchClass)
+        if (noteText[0] === "b") return -1
+        if (noteText[0] === "#") return 1
+        return 0
+    }
+
+    function formatScaleDegreeText(noteText) {
+        let match = /^([#b]+)(.+)$/.exec(noteText)
+        if (match) {
+            noteText = "<sup>" + match[1] + "</sup>" + match[2]
         }
         return noteText
     }
@@ -718,7 +774,25 @@ MuseScore {
             // note.small = true
             // note.noStem = true
 
-            if (note.accidental) {
+            if (useSymbolAccidentals()) {
+                let relPitchClass = (note.pitch + pitchShift - refNote + 1200) % 12
+                let accCount = getScaleDegreeAccidentalCount(relPitchClass)
+                if (accCount !== 0) {
+                    // Set native accidental symbol for the scale degree
+                    if (accCount === -1) note.accidentalType = Accidental.FLAT
+                    else if (accCount === 1) note.accidentalType = Accidental.SHARP
+                } else if (note.accidental) {
+                    // No degree accidental; hide any existing score accidental
+                    if (inputHideMethod.currentIndex == 0) {
+                        note.accidental.color = invisibleColor
+                        note.accidental.small = true
+                    }
+                    if (inputHideMethod.currentIndex == 1) {
+                        note.accidental.visible = false
+                    }
+                }
+            } else if (note.accidental) {
+                // Text or integer mode: hide all original accidentals
                 if (inputHideMethod.currentIndex == 0) {
                     note.accidental.color = invisibleColor
                     note.accidental.small = true
