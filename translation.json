@@ -12,6 +12,9 @@
     "在谱表外部添加整数记谱或简谱数字"
   ],
   "notation_format_label": ["Notation format", "记谱格式"],
+  "accidental_style_label": ["Accidental style", "变音记号样式"],
+  "accidental_style_text": ["Text (b/#)", "文本（b/#）"],
+  "accidental_style_symbol": ["Symbol (♭/♯)", "符号（♭/♯）"],
   "reference_note_label": [
     "Reference Note (MIDI C4=60)",
     "参考音 (MIDI C4=60)"

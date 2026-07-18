@@ -32,6 +32,14 @@ function noteNumToNoteName(n) {
     return noteNames[(n + 1200) % 12]
 }
 
+function getNoteTextFormats(formatIndex, pitchClass) {
+    return [
+        ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"],
+        ["1", "b2", "2", "b3", "3", "4", "b5", "5", "b6", "6", "b7", "7"],
+        ["1", "#1", "2", "#2", "3", "4", "#4", "5", "#5", "6", "#6", "7"]
+    ][formatIndex][pitchClass]
+}
+
 function getKeySigText() {
     var cursor = curScore.newCursor()
     if (curScore.selection.elements.length) {
@@ -69,14 +77,37 @@ function getKeySigText() {
 }
 
 function getNoteText(pitchClass) {
-    let formats = []
-    formats.push(["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"])
-    formats.push(["1", "b2", "2", "b3", "3", "4", "b5", "5", "b6", "6", "b7", "7"])
-    formats.push(["1", "#1", "2", "#2", "3", "4", "#4", "5", "#5", "6", "#6", "7"])
-    let notation = formats[inputNotationFormat.currentIndex]
-    let noteText = notation[pitchClass]
-    if ("#b".includes(noteText[0])) {
-        noteText = "<sup>" + noteText[0] + "</sup>" + noteText[1]
+    let noteText = getNoteTextFormats(inputNotationFormat.currentIndex, pitchClass)
+    if (useSymbolAccidentals()) {
+        // Strip text accidental prefix; native symbol will be added separately
+        noteText = noteText.replace(/^[#b]+/, "")
+    } else {
+        noteText = formatScaleDegreeText(noteText)
+    }
+    return noteText
+}
+
+function useSymbolAccidentals() {
+    if (inputNotationFormat.currentIndex === 0) return false
+    if (typeof inputAccidentalStyle !== "undefined") {
+        return inputAccidentalStyle.currentIndex === 1
+    }
+    return false
+}
+
+function getScaleDegreeAccidentalCount(pitchClass) {
+    let formatIndex = inputNotationFormat.currentIndex
+    if (formatIndex === 0) return 0
+    let noteText = getNoteTextFormats(formatIndex, pitchClass)
+    if (noteText[0] === "b") return -1
+    if (noteText[0] === "#") return 1
+    return 0
+}
+
+function formatScaleDegreeText(noteText) {
+    let match = /^([#b]+)(.+)$/.exec(noteText)
+    if (match) {
+        noteText = "<sup>" + match[1] + "</sup>" + match[2]
     }
     return noteText
 }

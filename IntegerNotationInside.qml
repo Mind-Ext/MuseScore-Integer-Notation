@@ -28,12 +28,13 @@ MuseScore {
     description: qsTr("{{ plugin_description }}")
     pluginType: "dialog"
     width: 320  // menu window size
-    height: 600
+    height: 640
 
     Settings {
         id: settings
         category: "IntegerNotationInside"
         property alias notationFormat: inputNotationFormat.currentIndex
+        property alias accidentalStyle: inputAccidentalStyle.currentIndex
         // property alias referenceNote: inputReferenceNote.value // do not persist
         property alias refSigFormat: inputRefSigFormat.currentIndex
         property alias followKeyChange: inputFollowKeyChange.checked
@@ -73,10 +74,33 @@ MuseScore {
                         text: "0~11"
                     }
                     ListElement {
-                        text: "1~7,♭"
+                        text: "1~7♭"
                     }
                     ListElement {
-                        text: "1~7,♯"
+                        text: "1~7♯"
+                    }
+                }
+            }
+        }
+
+        RowLayout {
+            Label {
+                text: "{{ accidental_style_label }}"
+                Layout.fillWidth: true
+                enabled: inputNotationFormat.currentIndex != 0
+            }
+            ComboBox {
+                id: inputAccidentalStyle
+                Layout.alignment: Qt.AlignRight
+                Layout.preferredWidth: 140
+                currentIndex: 0
+                enabled: inputNotationFormat.currentIndex != 0
+                model: ListModel {
+                    ListElement {
+                        text: "{{ accidental_style_text }}"
+                    }
+                    ListElement {
+                        text: "{{ accidental_style_symbol }}"
                     }
                 }
             }
@@ -387,6 +411,7 @@ MuseScore {
             quit()
     }
 
+
 {{ shared_functions }}
 
     function formatText(textEl, isGrace) {
@@ -476,7 +501,25 @@ MuseScore {
             // note.small = true
             // note.noStem = true
 
-            if (note.accidental) {
+            if (useSymbolAccidentals()) {
+                let relPitchClass = (note.pitch + pitchShift - refNote + 1200) % 12
+                let accCount = getScaleDegreeAccidentalCount(relPitchClass)
+                if (accCount !== 0) {
+                    // Set native accidental symbol for the scale degree
+                    if (accCount === -1) note.accidentalType = Accidental.FLAT
+                    else if (accCount === 1) note.accidentalType = Accidental.SHARP
+                } else if (note.accidental) {
+                    // No degree accidental; hide any existing score accidental
+                    if (inputHideMethod.currentIndex == 0) {
+                        note.accidental.color = invisibleColor
+                        note.accidental.small = true
+                    }
+                    if (inputHideMethod.currentIndex == 1) {
+                        note.accidental.visible = false
+                    }
+                }
+            } else if (note.accidental) {
+                // Text or integer mode: hide all original accidentals
                 if (inputHideMethod.currentIndex == 0) {
                     note.accidental.color = invisibleColor
                     note.accidental.small = true
